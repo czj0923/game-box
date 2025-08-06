@@ -8,14 +8,14 @@
         </div>
       </div>
       <div class="difficulty-selector">
-        <button
+        <CButton
           v-for="diff in Object.keys(DIFFICULTY_CONFIGS)"
           :key="diff"
-          :class="{ active: difficulty === diff }"
+          :is-active="difficulty === diff"
           @click="changeDifficulty(diff)"
         >
           {{ getDifficultyName(diff) }}
-        </button>
+        </CButton>
       </div>
     </div>
 
@@ -42,51 +42,43 @@
 
       <!-- 连线效果 -->
       <div
-        v-if="connectionPath.length > 0"
+        v-for="(segment, index) in connectionSegments"
+        :key="index"
         class="connection-line"
-        :style="connectionLineStyle"
+        :style="getSegmentStyle(segment)"
       ></div>
     </div>
 
     <div class="game-controls">
       <div class="props">
-        <button
+        <CButton
           @click="useProp(PropType.HINT)"
           :disabled="!canUseProp(PropType.HINT)"
-          class="prop-button"
         >
           提示 ({{ props[PropType.HINT] }})
-        </button>
-        <button
+        </CButton>
+        <CButton
           @click="useProp(PropType.SHUFFLE)"
           :disabled="!canUseProp(PropType.SHUFFLE)"
-          class="prop-button"
         >
           打乱 ({{ props[PropType.SHUFFLE] }})
-        </button>
-        <button
+        </CButton>
+        <CButton
           @click="useProp(PropType.UNDO)"
           :disabled="!canUseProp(PropType.UNDO)"
-          class="prop-button"
         >
           撤销 ({{ props[PropType.UNDO] }})
-        </button>
+        </CButton>
       </div>
-      <button @click="startNewGame" class="new-game-btn">新游戏</button>
+      <CButton @click="startNewGame" isActive> 新游戏 </CButton>
     </div>
 
     <!-- 排行榜 -->
     <div class="leaderboard">
       <h3>排行榜</h3>
       <div class="leaderboard-filters">
-        <button
-          v-for="diff in Object.keys(DIFFICULTY_CONFIGS)"
-          :key="diff"
-          :class="{ active: leaderboardDifficulty === diff }"
-          @click="leaderboardDifficulty = diff"
-        >
-          {{ getDifficultyName(diff) }}
-        </button>
+        <CTabs :tabs="rankTabs" v-model:activeTab="leaderboardDifficulty">
+        </CTabs>
       </div>
       <div class="leaderboard-content">
         <div
@@ -132,21 +124,32 @@ import {
   PropType,
   checkGameComplete
 } from '@/utils';
+import CButton from '@/components/c-button.vue';
+import CTabs from '@/components/c-tabs.vue';
+import { type Option } from '@/utils/index.ts';
 
 // 状态管理
 const board = ref<number[][]>([]);
 const score = ref(0);
-const timeElapsed = ref(0);
+const timeElapsed = ref(0); // 游戏用时
 const timer = ref<number | null>(null);
 const selectedPoint = ref<Point | null>(null);
 const difficulty = ref('normal');
 const showGameOver = ref(false);
 const gameOverMessage = ref('');
-const connectionPath = ref<Point[]>([]);
+const connectionSegments = ref<{ start: Point; end: Point }[]>([]);
 const highlightedCells = ref<Point[]>([]);
 const leaderboardDifficulty = ref('normal');
 const gameHistory = ref<GameState[]>([]);
+const boardPadding = ref(10);
+const rankTabs = ref<Option[]>([]);
 
+Object.keys(DIFFICULTY_CONFIGS).forEach((diff) => {
+  rankTabs.value.push({
+    label: getDifficultyName(diff),
+    value: diff
+  });
+});
 // 道具系统
 const props = ref({
   [PropType.HINT]: 3,
@@ -159,6 +162,7 @@ const boardStyle = computed(() => {
   const config =
     DIFFICULTY_CONFIGS[difficulty.value as keyof typeof DIFFICULTY_CONFIGS];
   return {
+    padding: `${boardPadding.value}px`,
     gridTemplateColumns: `repeat(${config.width}, 1fr)`
   };
 });
@@ -175,13 +179,140 @@ const filteredRecords = computed(() => {
   );
 });
 
-const connectionLineStyle = computed(() => {
-  if (connectionPath.value.length < 2) return {};
-  // 计算连线样式...
-  return {};
-});
+// 计算连接线段样式
+function getSegmentStyle(segment: { start: Point; end: Point }) {
+  const cellElement = document.querySelector('.cell') as HTMLElement;
+  if (!cellElement) return {};
 
-// 方法
+  const cellRect = cellElement.getBoundingClientRect();
+  const cellSize = cellRect.width;
+  const gap = 4; // 与 CSS 中的 gap 值保持一致
+
+  // 计算起点和终点的坐标
+  const x1 =
+    boardPadding.value + segment.start.x * (cellSize + gap) + cellSize / 2;
+  const y1 =
+    boardPadding.value + segment.start.y * (cellSize + gap) + cellSize / 2;
+  const x2 =
+    boardPadding.value + segment.end.x * (cellSize + gap) + cellSize / 2;
+  const y2 =
+    boardPadding.value + segment.end.y * (cellSize + gap) + cellSize / 2;
+
+  // 计算线段长度和角度
+  const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+  const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+
+  return {
+    width: `${length}px`,
+    height: '4px',
+    backgroundColor: 'rgba(76, 175, 80, 0.8)',
+    position: 'absolute',
+    left: `${x1}px`,
+    top: `${y1}px`,
+    transform: `rotate(${angle}deg)`,
+    transformOrigin: '0 50%',
+    borderRadius: '2px',
+    boxShadow: '0 0 4px rgba(76, 175, 80, 0.5)',
+    zIndex: '1'
+    // opacity: 1,
+    // animation: 'fadeInOut 1s ease-in-out forwards'
+  };
+}
+
+// 检查两点间是否可以直线连接
+function checkStraightLine(p1: Point, p2: Point, board: number[][]): boolean {
+  // 如果两点在同一行
+  if (p1.x === p2.x) {
+    const minY = Math.min(p1.y, p2.y);
+    const maxY = Math.max(p1.y, p2.y);
+    // 检查两点之间的所有格子是否为空
+    for (let y = minY + 1; y < maxY; y++) {
+      if (board[p1.x][y] !== 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // 如果两点在同一列
+  if (p1.y === p2.y) {
+    const minX = Math.min(p1.x, p2.x);
+    const maxX = Math.max(p1.x, p2.x);
+    // 检查两点之间的所有格子是否为空
+    for (let x = minX + 1; x < maxX; x++) {
+      if (board[x][p1.y] !== 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// 计算连接路径点
+function findConnectionPath(p1: Point, p2: Point, board: number[][]): Point[] {
+  // 直线连接
+  if (checkStraightLine(p1, p2, board)) {
+    return [p1, p2];
+  }
+
+  // 一次转角
+  const corners = [
+    { x: p1.x, y: p2.y, value: p1.value },
+    { x: p2.x, y: p1.y, value: p1.value }
+  ];
+
+  for (const corner of corners) {
+    if (
+      board[corner.x][corner.y] === 0 &&
+      checkStraightLine(p1, corner, board) &&
+      checkStraightLine(corner, p2, board)
+    ) {
+      return [p1, corner, p2];
+    }
+  }
+
+  // 两次转角
+  const height = board.length;
+  const width = board[0].length;
+
+  // 水平方向寻找路径
+  for (let i = 0; i < width; i++) {
+    const corner1 = { x: p1.x, y: i, value: p1.value };
+    const corner2 = { x: p2.x, y: i, value: p1.value };
+
+    if (
+      board[corner1.x][corner1.y] === 0 &&
+      board[corner2.x][corner2.y] === 0 &&
+      checkStraightLine(p1, corner1, board) &&
+      checkStraightLine(corner1, corner2, board) &&
+      checkStraightLine(corner2, p2, board)
+    ) {
+      return [p1, corner1, corner2, p2];
+    }
+  }
+
+  // 垂直方向寻找路径
+  for (let i = 0; i < height; i++) {
+    const corner1 = { x: i, y: p1.y, value: p1.value };
+    const corner2 = { x: i, y: p2.y, value: p1.value };
+
+    if (
+      board[corner1.x][corner1.y] === 0 &&
+      board[corner2.x][corner2.y] === 0 &&
+      checkStraightLine(p1, corner1, board) &&
+      checkStraightLine(corner1, corner2, board) &&
+      checkStraightLine(corner2, p2, board)
+    ) {
+      return [p1, corner1, corner2, p2];
+    }
+  }
+
+  return [p1, p2];
+}
+
+// 开始新游戏
 function startNewGame() {
   const config =
     DIFFICULTY_CONFIGS[difficulty.value as keyof typeof DIFFICULTY_CONFIGS];
@@ -192,7 +323,6 @@ function startNewGame() {
   showGameOver.value = false;
   gameHistory.value = [];
   highlightedCells.value = [];
-  connectionPath.value = [];
 
   // 重置道具
   props.value = {
@@ -276,9 +406,21 @@ function calculateScore(): number {
 }
 
 function showConnection(point1: Point, point2: Point) {
-  connectionPath.value = [point1, point2];
+  // 获取连接路径
+  const path = findConnectionPath(point1, point2, board.value);
+
+  // 创建连接线段
+  connectionSegments.value = [];
+  for (let i = 0; i < path.length - 1; i++) {
+    connectionSegments.value.push({
+      start: path[i],
+      end: path[i + 1]
+    });
+  }
+
+  // 清除连接线
   setTimeout(() => {
-    connectionPath.value = [];
+    connectionSegments.value = [];
   }, 500);
 }
 
@@ -329,7 +471,7 @@ function useProp(type: PropType) {
   props.value[type]--;
 
   switch (type) {
-    case PropType.HINT:
+    case PropType.HINT: {
       const match = findPossibleMatch(board.value);
       if (match) {
         highlightedCells.value = match;
@@ -338,6 +480,7 @@ function useProp(type: PropType) {
         }, 3000);
       }
       break;
+    }
     case PropType.SHUFFLE:
       board.value = shuffleBoard(board.value);
       break;
@@ -393,19 +536,33 @@ function isHighlighted(x: number, y: number): boolean {
 }
 
 function getEmoji(value: number): string {
+  // const emojis = [
+  //   '🐶',
+  //   '🐱',
+  //   '🐭',
+  //   '🐹',
+  //   '🐰',
+  //   '🦊',
+  //   '🐻',
+  //   '🐼',
+  //   '🐨',
+  //   '🐯',
+  //   '🦁',
+  //   '🐮'
+  // ];
   const emojis = [
-    '🐶',
-    '🐱',
-    '🐭',
-    '🐹',
-    '🐰',
-    '🦊',
-    '🐻',
-    '🐼',
-    '🐨',
-    '🐯',
-    '🦁',
-    '🐮'
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+    '12'
   ];
   return emojis[(value - 1) % emojis.length];
 }
@@ -433,9 +590,9 @@ watch(timeLeft, (newValue) => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .game-container {
-  max-width: 800px;
+  width: 800px;
   margin: 0 auto;
   padding: 20px;
   font-family: Arial, sans-serif;
@@ -451,7 +608,7 @@ watch(timeLeft, (newValue) => {
 .stats {
   display: flex;
   gap: 20px;
-  font-size: 1.2em;
+  font-size: 0.16rem;
 }
 
 .timer.warning {
@@ -462,20 +619,19 @@ watch(timeLeft, (newValue) => {
 .difficulty-selector {
   display: flex;
   gap: 10px;
+  &-button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.16rem;
+    background-color: var(--primary-color);
+    &.active {
+      background-color: var(--primary-active-color);
+      color: white;
+    }
+  }
 }
-
-.difficulty-selector button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.difficulty-selector button.active {
-  background-color: #4caf50;
-  color: white;
-}
-
 .game-board {
   display: grid;
   gap: 4px;
@@ -485,42 +641,46 @@ watch(timeLeft, (newValue) => {
   position: relative;
 }
 
+.board-row {
+  display: flex;
+  flex-direction: column;
+  row-gap: 4px;
+}
+
 .cell {
   aspect-ratio: 1;
   background-color: #fff;
+  color: #000;
   border-radius: 4px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  font-size: 1.5em;
-  transition: all 0.3s ease;
-}
-
-.cell.empty {
-  background-color: transparent;
-  cursor: default;
-}
-
-.cell.selected {
-  background-color: #4caf50;
-  color: white;
-  transform: scale(0.95);
-}
-
-.cell.highlighted {
-  animation: pulse 1s infinite;
-}
-
-.cell-content {
-  transition: all 0.3s ease;
+  font-size: 0.4rem;
+  transition: all 0.2s ease;
+  line-height: 1;
+  &.empty {
+    background-color: transparent;
+    cursor: default;
+  }
+  &.selected {
+    background-color: var(--primary-active-color);
+    color: white;
+    //transform: scale(0.95);
+  }
+  &.highlighted {
+    animation: pulse 1s infinite;
+  }
+  &-content {
+    transition: all 0.2s ease;
+  }
 }
 
 .connection-line {
   position: absolute;
-  background-color: rgba(76, 175, 80, 0.5);
+  background-color: rgba(76, 175, 80, 0.8);
   pointer-events: none;
-  transition: all 0.3s ease;
+  will-change: transform, opacity;
 }
 
 .game-controls {
@@ -528,6 +688,7 @@ watch(timeLeft, (newValue) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 0.16rem;
 }
 
 .props {
@@ -535,39 +696,16 @@ watch(timeLeft, (newValue) => {
   gap: 10px;
 }
 
-.prop-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  background-color: #2196f3;
-  color: white;
-  cursor: pointer;
-}
-
-.prop-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.new-game-btn {
-  padding: 10px 20px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1.1em;
-}
-
 .leaderboard {
   margin-top: 30px;
   padding: 20px;
   background-color: #f8f8f8;
   border-radius: 8px;
-}
-
-.leaderboard h3 {
-  margin: 0 0 15px 0;
+  font-size: 0.16rem;
+  h3 {
+    margin: 0 0 15px 0;
+    color: #000;
+  }
 }
 
 .leaderboard-filters {
@@ -581,6 +719,7 @@ watch(timeLeft, (newValue) => {
   grid-template-columns: 40px 1fr 1fr 2fr;
   padding: 8px;
   border-bottom: 1px solid #eee;
+  color: #000;
 }
 
 .game-over-modal {
@@ -597,6 +736,7 @@ watch(timeLeft, (newValue) => {
 
 .modal-content {
   background-color: white;
+  color: #000;
   padding: 30px;
   border-radius: 8px;
   text-align: center;
@@ -611,7 +751,29 @@ watch(timeLeft, (newValue) => {
 @keyframes pulse {
   50% {
     transform: scale(0.95);
-    background-color: #81c784;
+    background-color: var(--primary-active-color);
+  }
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 840px) {
+  .game-container {
+    width: 100vw;
+    padding: 10px;
   }
 }
 </style>

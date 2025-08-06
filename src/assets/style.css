@@ -11,6 +11,23 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 100px;
+
+  --primary-color: #2196f3;
+  --primary-active-color: #4caf50;
+  --disabled-bg-color: #eee;
+  --disabled-color: #aaa;
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+}
+
+@media (max-width: 840px) {
+  html {
+    font-size: calc(100vw / 8.4);
+  }
 }
 
 a {
@@ -28,6 +45,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #8d8d8d;
 }
 
 h1 {
@@ -61,7 +79,6 @@ button:focus-visible {
 #app {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
   text-align: center;
 }
 
