@@ -12,11 +12,11 @@ export interface GameState {
   difficulty: string;
 }
 
-export interface GameRecord {
-  score: number;
-  time: number;
-  date: string;
-  difficulty: string;
+export interface GameStatusResult {
+  isComplete: boolean; // 游戏是否结束
+  isVictory: boolean; // 是否胜利
+  reason: string; // 游戏结束原因
+  canContinue: boolean; // 是否可以继续（通过使用道具）
 }
 
 export enum PropType {
@@ -88,23 +88,44 @@ export function generateBoard(width: number, height: number): number[][] {
 // 判断是否可以消除
 export function canConnect(p1: Point, p2: Point, board: number[][]): boolean {
   if (p1.value !== p2.value) return false;
-
   // 检查直线连接
   if (checkStraightLine(p1, p2, board)) return true;
-
   // 检查一次转弯
-  if (checkOneCorner(p1, p2, board)) return true;
-
+  if (checkOneCorner(p1, p2, board).length == 1) return true;
   // 检查两次转弯
-  return checkTwoCorners(p1, p2, board);
+  return checkTwoCorners(p1, p2, board).length == 2;
 }
 
-export interface GameStatusResult {
-  isComplete: boolean; // 游戏是否结束
-  isVictory: boolean; // 是否胜利
-  reason: string; // 游戏结束原因
-  canContinue: boolean; // 是否可以继续（通过使用道具）
+// 获取路径数组
+export function findConnectionPath(
+  p1: Point,
+  p2: Point,
+  board: number[][]
+): { start: Point; end: Point }[] {
+  // 检查直线连接
+  if (checkStraightLine(p1, p2, board)) {
+    return [{ start: p1, end: p2 }];
+  }
+  // 检查一次转弯
+  const oneCorners = checkOneCorner(p1, p2, board);
+  if (oneCorners.length == 1) {
+    return [
+      { start: p1, end: oneCorners[0] },
+      { start: oneCorners[0], end: p2 }
+    ];
+  }
+  // 检查两次转弯
+  const twoCorners = checkTwoCorners(p1, p2, board);
+  if (twoCorners.length == 2) {
+    return [
+      { start: p1, end: twoCorners[0] },
+      { start: twoCorners[0], end: twoCorners[1] },
+      { start: twoCorners[1], end: p2 }
+    ];
+  }
+  return [];
 }
+
 // 找出一个可能的匹配(提示的功能)
 export function findPossibleMatch(board: number[][]): [Point, Point] | null {
   const height = board.length;
@@ -176,19 +197,8 @@ export function shuffleBoard(board: number[][]): number[][] {
 // 检查游戏是否完成
 export function checkGameComplete(
   board: number[][],
-  timeLeft: number,
   props: Record<PropType, number>
 ): GameStatusResult {
-  // 检查时间是否耗尽
-  if (timeLeft <= 0) {
-    return {
-      isComplete: true,
-      isVictory: false,
-      reason: '时间耗尽',
-      canContinue: false
-    };
-  }
-
   // 检查是否所有方块都已消除（胜利）
   const hasRemainingTiles = board.some((row) => row.some((cell) => cell !== 0));
   if (!hasRemainingTiles) {
@@ -235,11 +245,14 @@ export function checkGameComplete(
 
 // 检查两点是否可以连接
 function checkStraightLine(p1: Point, p2: Point, board: number[][]): boolean {
+  // 不是在同一行或列上，则不能直接连接
   if (p1.x !== p2.x && p1.y !== p2.y) return false;
 
+  // p1.x === p2.x 说明在同一列
   const start = p1.x === p2.x ? Math.min(p1.y, p2.y) : Math.min(p1.x, p2.x);
   const end = p1.x === p2.x ? Math.max(p1.y, p2.y) : Math.max(p1.x, p2.x);
 
+  // 遍历中间的格子，看是否有障碍物阻挡连接
   for (let i = start + 1; i < end; i++) {
     if (p1.x === p2.x && board[p1.x][i] !== 0) return false;
     if (p1.y === p2.y && board[i][p1.y] !== 0) return false;
@@ -249,7 +262,7 @@ function checkStraightLine(p1: Point, p2: Point, board: number[][]): boolean {
 }
 
 // 检查一次转弯
-function checkOneCorner(p1: Point, p2: Point, board: number[][]): boolean {
+function checkOneCorner(p1: Point, p2: Point, board: number[][]): Point[] {
   // 检查两个可能的转角点
   const corners = [
     { x: p1.x, y: p2.y },
@@ -257,82 +270,60 @@ function checkOneCorner(p1: Point, p2: Point, board: number[][]): boolean {
   ];
 
   for (const corner of corners) {
+    // 如果这个转角点不为空，则不能转弯，判断下一个转角点
     if (board[corner.x][corner.y] !== 0) continue;
 
+    // 如果转角点为空，就判断这个转角点到p1和p2的连线是否可行
     if (
-      checkStraightLine(p1, { ...corner, value: p1.value }, board) &&
-      checkStraightLine({ ...corner, value: p1.value }, p2, board)
+      checkStraightLine(p1, { ...corner, value: 0 }, board) &&
+      checkStraightLine({ ...corner, value: 0 }, p2, board)
     ) {
-      return true;
+      return [{ ...corner, value: 0 }];
     }
   }
 
-  return false;
+  return [];
 }
 
-// 检查两次次转弯
-function checkTwoCorners(p1: Point, p2: Point, board: number[][]): boolean {
-  const height = board.length;
-  const width = board[0].length;
+// 检查两次转弯
+function checkTwoCorners(p1: Point, p2: Point, board: number[][]): Point[] {
+  const width = board.length;
+  const height = board[0].length;
 
-  // 检查所有可能的两次转角路径
-  for (let i = 0; i < width; i++) {
-    // 检查经过 (p1.x, i) 和 (p2.x, i) 的路径
-    const corner1 = { x: p1.x, y: i, value: p1.value };
-    const corner2 = { x: p2.x, y: i, value: p1.value };
-
-    if (
-      board[corner1.x][corner1.y] === 0 &&
-      board[corner2.x][corner2.y] === 0 &&
-      checkStraightLine(p1, corner1, board) &&
-      checkStraightLine(corner1, corner2, board) &&
-      checkStraightLine(corner2, p2, board)
-    ) {
-      return true;
-    }
-  }
-
+  // 两次转弯的转角点的x和y必然有一个是相同的，若是x相同，则两个转角点的y一个是p1.y，另一个是p2.y，y相同的情况同理
+  // y相同
   for (let i = 0; i < height; i++) {
-    // 检查经过 (i, p1.y) 和 (i, p2.y) 的路径
-    const corner1 = { x: i, y: p1.y, value: p1.value };
-    const corner2 = { x: i, y: p2.y, value: p1.value };
+    // 检查经过 (p1.x, i) 和 (p2.x, i) 的路径
+    const corner1 = { x: p1.x, y: i, value: board[p1.x][i] };
+    const corner2 = { x: p2.x, y: i, value: board[p2.x][i] };
 
+    // 检查三条线段之间是否有障碍物，和一次转弯的逻辑类似
     if (
-      board[corner1.x][corner1.y] === 0 &&
-      board[corner2.x][corner2.y] === 0 &&
+      corner1.value === 0 &&
+      corner2.value === 0 &&
       checkStraightLine(p1, corner1, board) &&
       checkStraightLine(corner1, corner2, board) &&
       checkStraightLine(corner2, p2, board)
     ) {
-      return true;
+      return [corner1, corner2];
+    }
+  }
+  // x相同
+  for (let i = 0; i < width; i++) {
+    // 检查经过 (i, p1.y) 和 (i, p2.y) 的路径
+    const corner1 = { x: i, y: p1.y, value: board[i][p1.y] };
+    const corner2 = { x: i, y: p2.y, value: board[i][p2.y] };
+
+    if (
+      corner1.value === 0 &&
+      corner2.value === 0 &&
+      checkStraightLine(p1, corner1, board) &&
+      checkStraightLine(corner1, corner2, board) &&
+      checkStraightLine(corner2, p2, board)
+    ) {
+      return [corner1, corner2];
     }
   }
 
-  return false;
-}
-
-// 游戏记录管理
-const STORAGE_KEY = 'lianliankan_records';
-
-// 保存游戏记录到localStorage
-export function saveGameRecord(record: GameRecord): void {
-  const records = getGameRecords();
-  records.push(record);
-  records.sort((a, b) => b.score - a.score);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 10)));
-}
-
-// 从localStorage获取游戏记录
-export function getGameRecords(): GameRecord[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return [];
 }

@@ -20,7 +20,7 @@
     </div>
 
     <div class="game-board" :style="boardStyle">
-      <div v-for="(row, x) in board" :key="x" class="board-row">
+      <div v-for="(row, x) in board" :key="x" class="board-column">
         <div
           v-for="(cell, y) in row"
           :key="`${x}-${y}`"
@@ -81,6 +81,12 @@
         </CTabs>
       </div>
       <div class="leaderboard-content">
+        <div class="record-item">
+          <div class="rank">序号</div>
+          <div class="record-score">得分</div>
+          <div class="record-time">用时</div>
+          <div class="record-date">时间</div>
+        </div>
         <div
           v-for="(record, index) in filteredRecords"
           :key="index"
@@ -102,7 +108,7 @@
           <p>得分：{{ score }}</p>
           <p>用时：{{ formatTime(timeElapsed) }}</p>
         </div>
-        <button @click="startNewGame">再来一局</button>
+        <c-button @click="startNewGame">再来一局</c-button>
       </div>
     </div>
   </div>
@@ -115,18 +121,22 @@ import {
   canConnect,
   findPossibleMatch,
   shuffleBoard,
-  saveGameRecord,
-  getGameRecords,
-  formatTime,
   type Point,
   type GameState,
   DIFFICULTY_CONFIGS,
   PropType,
-  checkGameComplete
+  checkGameComplete,
+  type Option,
+  findConnectionPath
 } from '@/utils';
+import {
+  saveGameRecord,
+  getGameRecords,
+  formatTime,
+  formatDate
+} from '@/utils/rank.ts';
 import CButton from '@/components/c-button.vue';
 import CTabs from '@/components/c-tabs.vue';
-import { type Option } from '@/utils/index.ts';
 
 // 状态管理
 const board = ref<number[][]>([]);
@@ -219,99 +229,6 @@ function getSegmentStyle(segment: { start: Point; end: Point }) {
   };
 }
 
-// 检查两点间是否可以直线连接
-function checkStraightLine(p1: Point, p2: Point, board: number[][]): boolean {
-  // 如果两点在同一行
-  if (p1.x === p2.x) {
-    const minY = Math.min(p1.y, p2.y);
-    const maxY = Math.max(p1.y, p2.y);
-    // 检查两点之间的所有格子是否为空
-    for (let y = minY + 1; y < maxY; y++) {
-      if (board[p1.x][y] !== 0) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // 如果两点在同一列
-  if (p1.y === p2.y) {
-    const minX = Math.min(p1.x, p2.x);
-    const maxX = Math.max(p1.x, p2.x);
-    // 检查两点之间的所有格子是否为空
-    for (let x = minX + 1; x < maxX; x++) {
-      if (board[x][p1.y] !== 0) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  return false;
-}
-
-// 计算连接路径点
-function findConnectionPath(p1: Point, p2: Point, board: number[][]): Point[] {
-  // 直线连接
-  if (checkStraightLine(p1, p2, board)) {
-    return [p1, p2];
-  }
-
-  // 一次转角
-  const corners = [
-    { x: p1.x, y: p2.y, value: p1.value },
-    { x: p2.x, y: p1.y, value: p1.value }
-  ];
-
-  for (const corner of corners) {
-    if (
-      board[corner.x][corner.y] === 0 &&
-      checkStraightLine(p1, corner, board) &&
-      checkStraightLine(corner, p2, board)
-    ) {
-      return [p1, corner, p2];
-    }
-  }
-
-  // 两次转角
-  const height = board.length;
-  const width = board[0].length;
-
-  // 水平方向寻找路径
-  for (let i = 0; i < width; i++) {
-    const corner1 = { x: p1.x, y: i, value: p1.value };
-    const corner2 = { x: p2.x, y: i, value: p1.value };
-
-    if (
-      board[corner1.x][corner1.y] === 0 &&
-      board[corner2.x][corner2.y] === 0 &&
-      checkStraightLine(p1, corner1, board) &&
-      checkStraightLine(corner1, corner2, board) &&
-      checkStraightLine(corner2, p2, board)
-    ) {
-      return [p1, corner1, corner2, p2];
-    }
-  }
-
-  // 垂直方向寻找路径
-  for (let i = 0; i < height; i++) {
-    const corner1 = { x: i, y: p1.y, value: p1.value };
-    const corner2 = { x: i, y: p2.y, value: p1.value };
-
-    if (
-      board[corner1.x][corner1.y] === 0 &&
-      board[corner2.x][corner2.y] === 0 &&
-      checkStraightLine(p1, corner1, board) &&
-      checkStraightLine(corner1, corner2, board) &&
-      checkStraightLine(corner2, p2, board)
-    ) {
-      return [p1, corner1, corner2, p2];
-    }
-  }
-
-  return [p1, p2];
-}
-
 // 开始新游戏
 function startNewGame() {
   const config =
@@ -338,12 +255,14 @@ function startNewGame() {
   timer.value = setInterval(() => {
     timeElapsed.value++;
     if (timeElapsed.value >= config.timeLimit) {
-      endGame('时间到！');
+      endGame('时间到，游戏失败！', false);
     }
   }, 1000);
 }
 
+// 点击单元格
 function handleCellClick(x: number, y: number) {
+  // 空格
   if (board.value[x][y] === 0) return;
 
   const currentPoint: Point = {
@@ -352,16 +271,19 @@ function handleCellClick(x: number, y: number) {
     value: board.value[x][y]
   };
 
+  // 其他无选中方块
   if (!selectedPoint.value) {
     selectedPoint.value = currentPoint;
     return;
   }
 
+  // 点击的是已选中方块
   if (x === selectedPoint.value.x && y === selectedPoint.value.y) {
     selectedPoint.value = null;
     return;
   }
 
+  // 判断可消除
   if (canConnect(selectedPoint.value, currentPoint, board.value)) {
     // 保存当前状态用于撤销
     saveGameState();
@@ -406,17 +328,9 @@ function calculateScore(): number {
 }
 
 function showConnection(point1: Point, point2: Point) {
-  // 获取连接路径
-  const path = findConnectionPath(point1, point2, board.value);
-
-  // 创建连接线段
   connectionSegments.value = [];
-  for (let i = 0; i < path.length - 1; i++) {
-    connectionSegments.value.push({
-      start: path[i],
-      end: path[i + 1]
-    });
-  }
+  // 获取连接路径
+  connectionSegments.value = findConnectionPath(point1, point2, board.value);
 
   // 清除连接线
   setTimeout(() => {
@@ -425,14 +339,10 @@ function showConnection(point1: Point, point2: Point) {
 }
 
 function checkGameState() {
-  const gameStatus = checkGameComplete(
-    board.value,
-    timeLeft.value,
-    props.value
-  );
+  const gameStatus = checkGameComplete(board.value, props.value);
 
   if (gameStatus.isComplete) {
-    endGame(gameStatus.reason);
+    endGame(gameStatus.reason, true);
     if (gameStatus.isVictory) {
       score.value += calculateTimeBonus(); // 给予额外的时间奖励
     }
@@ -445,7 +355,7 @@ function calculateTimeBonus(): number {
   return timeBonus;
 }
 
-function endGame(message: string) {
+function endGame(message: string, needSave: boolean = true) {
   if (timer.value) {
     clearInterval(timer.value);
     timer.value = null;
@@ -455,7 +365,7 @@ function endGame(message: string) {
   showGameOver.value = true;
 
   // 保存记录
-  if (score.value > 0) {
+  if (score.value > 0 && needSave) {
     saveGameRecord({
       score: score.value,
       time: timeElapsed.value,
@@ -536,39 +446,35 @@ function isHighlighted(x: number, y: number): boolean {
 }
 
 function getEmoji(value: number): string {
-  // const emojis = [
-  //   '🐶',
-  //   '🐱',
-  //   '🐭',
-  //   '🐹',
-  //   '🐰',
-  //   '🦊',
-  //   '🐻',
-  //   '🐼',
-  //   '🐨',
-  //   '🐯',
-  //   '🦁',
-  //   '🐮'
-  // ];
   const emojis = [
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '10',
-    '11',
-    '12'
+    '🐶',
+    '🐱',
+    '🐭',
+    '🐹',
+    '🐰',
+    '🦊',
+    '🐻',
+    '🐼',
+    '🐨',
+    '🐯',
+    '🦁',
+    '🐮'
   ];
+  // const emojis = [
+  //   '1',
+  //   '2',
+  //   '3',
+  //   '4',
+  //   '5',
+  //   '6',
+  //   '7',
+  //   '8',
+  //   '9',
+  //   '10',
+  //   '11',
+  //   '12'
+  // ];
   return emojis[(value - 1) % emojis.length];
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString();
 }
 
 // 生命周期
@@ -585,7 +491,7 @@ onUnmounted(() => {
 // 监听游戏状态
 watch(timeLeft, (newValue) => {
   if (newValue === 0) {
-    endGame('时间到！');
+    endGame('时间到，游戏失败！', false);
   }
 });
 </script>
@@ -641,7 +547,7 @@ watch(timeLeft, (newValue) => {
   position: relative;
 }
 
-.board-row {
+.board-column {
   display: flex;
   flex-direction: column;
   row-gap: 4px;
@@ -732,14 +638,17 @@ watch(timeLeft, (newValue) => {
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.modal-content {
-  background-color: white;
-  color: #000;
-  padding: 30px;
-  border-radius: 8px;
-  text-align: center;
+  font-size: 0.16rem;
+  .modal-content {
+    background-color: white;
+    color: #000;
+    padding: 30px;
+    border-radius: 8px;
+    text-align: center;
+    h2 {
+      color: #f00;
+    }
+  }
 }
 
 @keyframes blink {

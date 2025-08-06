@@ -38,9 +38,9 @@ const handleClick = (e: Event) => {
   font-size: 0.16rem;
   background-color: var(--primary-color);
   transition: all ease 0.2s;
+  color: #fff;
   &.active {
     background-color: var(--primary-active-color);
-    color: white;
   }
   &.disabled {
     background-color: var(--disabled-bg-color);
