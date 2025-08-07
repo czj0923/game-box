@@ -8,14 +8,16 @@
         </div>
       </div>
       <div class="difficulty-selector">
-        <CButton
+        <a-button
+          type="primary"
+          size="large"
           v-for="diff in Object.keys(DIFFICULTY_CONFIGS)"
           :key="diff"
           :is-active="difficulty === diff"
           @click="changeDifficulty(diff)"
         >
           {{ getDifficultyName(diff) }}
-        </CButton>
+        </a-button>
       </div>
     </div>
 
@@ -115,7 +117,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import {
+  ref,
+  computed,
+  onMounted,
+  onUnmounted,
+  watch,
+  type CSSProperties
+} from 'vue';
 import {
   generateBoard,
   canConnect,
@@ -135,8 +144,8 @@ import {
   formatTime,
   formatDate
 } from '@/utils/rank.ts';
-import CButton from '@/components/c-button.vue';
-import CTabs from '@/components/c-tabs.vue';
+import { useMainStore } from '@/stores';
+const store = useMainStore();
 
 // 状态管理
 const board = ref<number[][]>([]);
@@ -151,7 +160,7 @@ const connectionSegments = ref<{ start: Point; end: Point }[]>([]);
 const highlightedCells = ref<Point[]>([]);
 const leaderboardDifficulty = ref('normal');
 const gameHistory = ref<GameState[]>([]);
-const boardPadding = ref(10);
+const boardPadding = ref(0.1);
 const rankTabs = ref<Option[]>([]);
 
 Object.keys(DIFFICULTY_CONFIGS).forEach((diff) => {
@@ -172,7 +181,7 @@ const boardStyle = computed(() => {
   const config =
     DIFFICULTY_CONFIGS[difficulty.value as keyof typeof DIFFICULTY_CONFIGS];
   return {
-    padding: `${boardPadding.value}px`,
+    padding: `${boardPadding.value}rem`,
     gridTemplateColumns: `repeat(${config.width}, 1fr)`
   };
 });
@@ -190,13 +199,14 @@ const filteredRecords = computed(() => {
 });
 
 // 计算连接线段样式
-function getSegmentStyle(segment: { start: Point; end: Point }) {
+function getSegmentStyle(segment: { start: Point; end: Point }): CSSProperties {
   const cellElement = document.querySelector('.cell') as HTMLElement;
   if (!cellElement) return {};
 
   const cellRect = cellElement.getBoundingClientRect();
-  const cellSize = cellRect.width;
-  const gap = 4; // 与 CSS 中的 gap 值保持一致
+
+  const cellSize = cellRect.width / (store.ratio * 100);
+  const gap = 0.04; // 与 CSS 中的 gap 值保持一致
 
   // 计算起点和终点的坐标
   const x1 =
@@ -213,12 +223,12 @@ function getSegmentStyle(segment: { start: Point; end: Point }) {
   const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
 
   return {
-    width: `${length}px`,
-    height: '4px',
+    width: `${length}rem`,
+    height: '0.04rem',
     backgroundColor: 'rgba(76, 175, 80, 0.8)',
     position: 'absolute',
-    left: `${x1}px`,
-    top: `${y1}px`,
+    left: `${x1}rem`,
+    top: `${y1}rem`,
     transform: `rotate(${angle}deg)`,
     transformOrigin: '0 50%',
     borderRadius: '2px',
@@ -446,34 +456,34 @@ function isHighlighted(x: number, y: number): boolean {
 }
 
 function getEmoji(value: number): string {
+  //const emojis = [
+  //  '🐶',
+  //  '🐱',
+  //  '🐭',
+  //  '🐹',
+  //  '🐰',
+  //  '🦊',
+  //  '🐻',
+  //  '🐼',
+  //  '🐨',
+  //  '🐯',
+  //  '🦁',
+  //  '🐮'
+  //];
   const emojis = [
-    '🐶',
-    '🐱',
-    '🐭',
-    '🐹',
-    '🐰',
-    '🦊',
-    '🐻',
-    '🐼',
-    '🐨',
-    '🐯',
-    '🦁',
-    '🐮'
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+    '12'
   ];
-  // const emojis = [
-  //   '1',
-  //   '2',
-  //   '3',
-  //   '4',
-  //   '5',
-  //   '6',
-  //   '7',
-  //   '8',
-  //   '9',
-  //   '10',
-  //   '11',
-  //   '12'
-  // ];
   return emojis[(value - 1) % emojis.length];
 }
 
@@ -500,7 +510,7 @@ watch(timeLeft, (newValue) => {
 .game-container {
   width: 800px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 0.2rem;
   font-family: Arial, sans-serif;
 }
 
@@ -508,12 +518,12 @@ watch(timeLeft, (newValue) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 0.2rem;
 }
 
 .stats {
   display: flex;
-  gap: 20px;
+  gap: 0.2rem;
   font-size: 0.16rem;
 }
 
@@ -524,11 +534,11 @@ watch(timeLeft, (newValue) => {
 
 .difficulty-selector {
   display: flex;
-  gap: 10px;
+  gap: 0.1rem;
   &-button {
-    padding: 8px 16px;
+    padding: 0.08rem 0.16rem;
     border: none;
-    border-radius: 4px;
+    border-radius: 0.04rem;
     cursor: pointer;
     font-size: 0.16rem;
     background-color: var(--primary-color);
@@ -540,24 +550,24 @@ watch(timeLeft, (newValue) => {
 }
 .game-board {
   display: grid;
-  gap: 4px;
+  gap: 0.04rem;
   background-color: #f0f0f0;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 0.1rem;
+  border-radius: 0.08rem;
   position: relative;
 }
 
 .board-column {
   display: flex;
   flex-direction: column;
-  row-gap: 4px;
+  row-gap: 0.04rem;
 }
 
 .cell {
   aspect-ratio: 1;
   background-color: #fff;
   color: #000;
-  border-radius: 4px;
+  border-radius: 0.04rem;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -590,7 +600,7 @@ watch(timeLeft, (newValue) => {
 }
 
 .game-controls {
-  margin-top: 20px;
+  margin-top: 0.2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -599,14 +609,14 @@ watch(timeLeft, (newValue) => {
 
 .props {
   display: flex;
-  gap: 10px;
+  gap: 0.1rem;
 }
 
 .leaderboard {
-  margin-top: 30px;
-  padding: 20px;
+  margin-top: 0.3rem;
+  padding: 0.2rem;
   background-color: #f8f8f8;
-  border-radius: 8px;
+  border-radius: 0.08rem;
   font-size: 0.16rem;
   h3 {
     margin: 0 0 15px 0;
@@ -616,14 +626,14 @@ watch(timeLeft, (newValue) => {
 
 .leaderboard-filters {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 0.1rem;
+  margin-bottom: 0.15rem;
 }
 
 .record-item {
   display: grid;
-  grid-template-columns: 40px 1fr 1fr 2fr;
-  padding: 8px;
+  grid-template-columns: 0.4rem 1fr 1fr 2fr;
+  padding: 0.08rem;
   border-bottom: 1px solid #eee;
   color: #000;
 }
@@ -642,8 +652,8 @@ watch(timeLeft, (newValue) => {
   .modal-content {
     background-color: white;
     color: #000;
-    padding: 30px;
-    border-radius: 8px;
+    padding: 0.3rem;
+    border-radius: 0.08rem;
     text-align: center;
     h2 {
       color: #f00;

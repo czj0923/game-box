@@ -30,21 +30,21 @@ const handleClick = (tab: Option) => {
 <style lang="scss" scoped>
 .tabs {
   background-color: #ebebeb;
-  border-radius: 6px;
+  border-radius: 0.06rem;
   display: flex;
   align-items: center;
-  padding: 4px;
-  height: 40px;
+  padding: 0.04rem;
+  height: 0.4rem;
   .tab {
     cursor: pointer;
-    line-height: 32px;
+    line-height: 0.32rem;
     text-align: center;
-    padding: 0 12px;
+    padding: 0 0.12rem;
     color: #000;
     &.active {
       color: var(--primary-color);
       background-color: #fff;
-      border-radius: 6px;
+      border-radius: 0.06rem;
     }
   }
 }

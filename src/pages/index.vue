@@ -3,7 +3,7 @@
 </template>
 <script setup lang="ts">
 definePage({
-  redirect: '/home'
+  redirect: '/link-game'
 });
 </script>
 <style lang="scss" scoped></style>

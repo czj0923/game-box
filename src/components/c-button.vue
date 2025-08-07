@@ -31,9 +31,9 @@ const handleClick = (e: Event) => {
 
 <style lang="scss" scope>
 .button {
-  padding: 8px 16px;
+  padding: 0.08rem 0.16rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 0.04rem;
   cursor: pointer;
   font-size: 0.16rem;
   background-color: var(--primary-color);
