@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import IndexPage from './pages/index.vue';
 import { useMainStore } from './stores';
 const store = useMainStore();
 import { onMounted, onUnmounted } from 'vue';
@@ -39,7 +38,7 @@ onUnmounted(() => {
         }
       }"
     >
-      <IndexPage></IndexPage>
+      <router-view></router-view>
     </a-config-provider>
   </a-style-provider>
 </template>
