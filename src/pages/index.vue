@@ -21,7 +21,6 @@
 </template>
 <script setup lang="ts">
 import { Swiper, SwiperSlide } from 'swiper/vue';
-import 'swiper/css';
 import { reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
@@ -47,7 +46,7 @@ const goToGame = (url: string) => {
     path: url
   });
 };
-const onSwiper = (swiper) => {
+const onSwiper = (swiper: any) => {
   console.log(swiper);
 };
 const onSlideChange = () => {

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
+    "@vueuse/core": "^13.6.0",
     "ant-design-vue": "~4.2.6",
     "pinia": "^3.0.3",
     "swiper": "^11.2.10",

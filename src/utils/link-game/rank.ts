@@ -4,25 +4,21 @@ export interface GameRecord {
   date: string;
   difficulty: string;
 }
-
 // 游戏记录管理
 const STORAGE_KEY = 'link_game_records';
+import { useStorage } from '@vueuse/core';
 
+const records = useStorage<GameRecord[]>(STORAGE_KEY, []);
 // 保存游戏记录到localStorage
 export function saveGameRecord(record: GameRecord): void {
-  const records = getGameRecords();
-  records.push(record);
-  records.sort((a, b) => b.score - a.score);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 10)));
+  records.value.push(record);
+  records.value.sort((a, b) => b.score - a.score);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records.value.slice(0, 10)));
 }
 
 // 从localStorage获取游戏记录
 export function getGameRecords(): GameRecord[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
+  return records.value;
 }
 
 export function formatTime(seconds: number): string {

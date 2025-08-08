@@ -13,7 +13,6 @@
           size="large"
           v-for="diff in Object.keys(DIFFICULTY_CONFIGS)"
           :key="diff"
-          :is-active="difficulty === diff"
           @click="changeDifficulty(diff)"
         >
           {{ getDifficultyName(diff) }}
@@ -21,7 +20,7 @@
       </div>
     </div>
 
-    <div class="game-board" :style="boardStyle">
+    <div v-if="timer" class="game-board" :style="boardStyle">
       <div v-for="(row, x) in board" :key="x" class="board-column">
         <div
           v-for="(cell, y) in row"
@@ -34,11 +33,11 @@
           }"
           @click="handleCellClick(x, y)"
         >
-          <template v-if="cell !== 0">
-            <div class="cell-content">
+          <transition name="fade">
+            <div class="cell-content" v-if="cell !== 0">
               {{ getEmoji(cell) }}
             </div>
-          </template>
+          </transition>
         </div>
       </div>
 
@@ -50,33 +49,60 @@
         :style="getSegmentStyle(segment)"
       ></div>
     </div>
+    <div v-else>
+      <a-button type="primary" size="large" @click="startGame()">
+        {{ '开始游戏' }}
+      </a-button>
+    </div>
 
     <div class="game-controls">
-      <div class="props">
-        <CButton
+      <div class="button-group">
+        <a-button
+          type="primary"
+          size="large"
           @click="useProp(PropType.HINT)"
           :disabled="!canUseProp(PropType.HINT)"
         >
+          <ExclamationCircleOutlined />
           提示 ({{ props[PropType.HINT] }})
-        </CButton>
-        <CButton
+        </a-button>
+        <a-button
+          type="primary"
+          size="large"
           @click="useProp(PropType.SHUFFLE)"
           :disabled="!canUseProp(PropType.SHUFFLE)"
         >
+          <RetweetOutlined />
           打乱 ({{ props[PropType.SHUFFLE] }})
-        </CButton>
-        <CButton
+        </a-button>
+        <a-button
+          type="primary"
+          size="large"
           @click="useProp(PropType.UNDO)"
           :disabled="!canUseProp(PropType.UNDO)"
         >
+          <UndoOutlined />
           撤销 ({{ props[PropType.UNDO] }})
-        </CButton>
+        </a-button>
       </div>
-      <CButton @click="startNewGame" isActive> 新游戏 </CButton>
+      <div class="button-group">
+        <a-button type="primary" size="large" @click="handlerFullScreen">
+          <FullscreenExitOutlined v-if="isFullscreen" />
+          <FullscreenOutlined v-else />
+          {{ isFullscreen ? '退出' : '' }}全屏
+        </a-button>
+        <a-button
+          type="primary"
+          size="large"
+          @click="timer ? startNewGame() : startGame()"
+        >
+          {{ timer ? '重新开始' : '开始游戏' }}
+        </a-button>
+      </div>
     </div>
 
     <!-- 排行榜 -->
-    <div class="leaderboard">
+    <div class="leaderboard" ref="game">
       <h3>排行榜</h3>
       <div class="leaderboard-filters">
         <CTabs :tabs="rankTabs" v-model:activeTab="leaderboardDifficulty">
@@ -110,7 +136,7 @@
           <p>得分：{{ score }}</p>
           <p>用时：{{ formatTime(timeElapsed) }}</p>
         </div>
-        <c-button @click="startNewGame">再来一局</c-button>
+        <c-button @click="startGame">再来一局</c-button>
       </div>
     </div>
   </div>
@@ -123,7 +149,8 @@ import {
   onMounted,
   onUnmounted,
   watch,
-  type CSSProperties
+  type CSSProperties,
+  createVNode
 } from 'vue';
 import {
   generateBoard,
@@ -135,17 +162,20 @@ import {
   DIFFICULTY_CONFIGS,
   PropType,
   checkGameComplete,
-  type Option,
   findConnectionPath
-} from '@/utils';
+} from '@/utils/link-game';
+import { type Option } from '@/utils';
 import {
   saveGameRecord,
   getGameRecords,
   formatTime,
   formatDate
-} from '@/utils/rank.ts';
+} from '@/utils/link-game/rank.ts';
+import { Modal, message } from 'ant-design-vue';
+import { ExclamationCircleOutlined } from '@ant-design/icons-vue';
 import { useMainStore } from '@/stores';
 const store = useMainStore();
+import { useFullscreen } from '@vueuse/core';
 
 // 状态管理
 const board = ref<number[][]>([]);
@@ -198,6 +228,10 @@ const filteredRecords = computed(() => {
   );
 });
 
+const { isFullscreen, toggle } = useFullscreen();
+const handlerFullScreen = () => {
+  toggle();
+};
 // 计算连接线段样式
 function getSegmentStyle(segment: { start: Point; end: Point }): CSSProperties {
   const cellElement = document.querySelector('.cell') as HTMLElement;
@@ -225,22 +259,43 @@ function getSegmentStyle(segment: { start: Point; end: Point }): CSSProperties {
   return {
     width: `${length}rem`,
     height: '0.04rem',
-    backgroundColor: 'rgba(76, 175, 80, 0.8)',
     position: 'absolute',
     left: `${x1}rem`,
     top: `${y1}rem`,
     transform: `rotate(${angle}deg)`,
     transformOrigin: '0 50%',
     borderRadius: '2px',
-    boxShadow: '0 0 4px rgba(76, 175, 80, 0.5)',
     zIndex: '1'
     // opacity: 1,
-    // animation: 'fadeInOut 1s ease-in-out forwards'
+    // animation: 'fadeInOut 1s ease-in-out'
   };
 }
 
+function confirm(content: string = '是否重新开始游戏？') {
+  return new Promise((resolve, reject) => {
+    Modal.confirm({
+      title: '确认提示',
+      icon: createVNode(ExclamationCircleOutlined),
+      content,
+      onOk() {
+        resolve(true);
+      },
+      onCancel() {
+        reject();
+      }
+    });
+  });
+}
 // 开始新游戏
 function startNewGame() {
+  confirm()
+    .then(() => {
+      startGame();
+    })
+    .catch(() => {});
+}
+// 开始游戏
+function startGame() {
   const config =
     DIFFICULTY_CONFIGS[difficulty.value as keyof typeof DIFFICULTY_CONFIGS];
   board.value = generateBoard(config.width, config.height);
@@ -386,9 +441,8 @@ function endGame(message: string, needSave: boolean = true) {
 }
 
 function useProp(type: PropType) {
+  if (!timer.value) return;
   if (!canUseProp(type)) return;
-
-  props.value[type]--;
 
   switch (type) {
     case PropType.HINT: {
@@ -398,11 +452,15 @@ function useProp(type: PropType) {
         setTimeout(() => {
           highlightedCells.value = [];
         }, 3000);
+        props.value[PropType.HINT]--;
+      } else {
+        message.error('无可提示方块');
       }
       break;
     }
     case PropType.SHUFFLE:
       board.value = shuffleBoard(board.value);
+      props.value[PropType.SHUFFLE]--;
       break;
     case PropType.UNDO:
       if (gameHistory.value.length > 0) {
@@ -410,6 +468,9 @@ function useProp(type: PropType) {
         board.value = previousState.board;
         score.value = previousState.score;
         selectedPoint.value = null;
+        props.value[PropType.UNDO]--;
+      } else {
+        message.error('无法撤销');
       }
       break;
   }
@@ -430,11 +491,15 @@ function saveGameState() {
 
 function changeDifficulty(diff: string) {
   if (timer.value) {
-    const confirm = window.confirm('更换难度将重新开始游戏，确定要继续吗？');
-    if (!confirm) return;
+    confirm('更换难度将重新开始游戏，确定要继续吗？')
+      .then(() => {
+        difficulty.value = diff;
+        startGame();
+      })
+      .catch(() => {});
+  } else {
+    startGame();
   }
-  difficulty.value = diff;
-  startNewGame();
 }
 
 function getDifficultyName(diff: string): string {
@@ -487,11 +552,6 @@ function getEmoji(value: number): string {
   return emojis[(value - 1) % emojis.length];
 }
 
-// 生命周期
-onMounted(() => {
-  startNewGame();
-});
-
 onUnmounted(() => {
   if (timer.value) {
     clearInterval(timer.value);
@@ -535,24 +595,11 @@ watch(timeLeft, (newValue) => {
 .difficulty-selector {
   display: flex;
   gap: 0.1rem;
-  &-button {
-    padding: 0.08rem 0.16rem;
-    border: none;
-    border-radius: 0.04rem;
-    cursor: pointer;
-    font-size: 0.16rem;
-    background-color: var(--primary-color);
-    &.active {
-      background-color: var(--primary-active-color);
-      color: white;
-    }
-  }
 }
 .game-board {
   display: grid;
   gap: 0.04rem;
   background-color: #f0f0f0;
-  padding: 0.1rem;
   border-radius: 0.08rem;
   position: relative;
 }
@@ -573,8 +620,11 @@ watch(timeLeft, (newValue) => {
   align-items: center;
   cursor: pointer;
   font-size: 0.4rem;
-  transition: all 0.2s ease;
+  transition: all 0.4s ease;
   line-height: 1;
+  &:hover {
+    background-color: var(--primary-hover-color);
+  }
   &.empty {
     background-color: transparent;
     cursor: default;
@@ -587,14 +637,11 @@ watch(timeLeft, (newValue) => {
   &.highlighted {
     animation: pulse 1s infinite;
   }
-  &-content {
-    transition: all 0.2s ease;
-  }
 }
 
 .connection-line {
   position: absolute;
-  background-color: rgba(76, 175, 80, 0.8);
+  background-color: var(--primary-color);
   pointer-events: none;
   will-change: transform, opacity;
 }
@@ -607,7 +654,7 @@ watch(timeLeft, (newValue) => {
   font-size: 0.16rem;
 }
 
-.props {
+.button-group {
   display: flex;
   gap: 0.1rem;
 }
@@ -694,5 +741,13 @@ watch(timeLeft, (newValue) => {
     width: 100vw;
     padding: 10px;
   }
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.4s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

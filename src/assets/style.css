@@ -12,8 +12,9 @@
   -moz-osx-font-smoothing: grayscale;
   font-size: 100px;
 
-  --primary-color: #2196f3;
-  --primary-active-color: #4caf50;
+  --primary-color: #46b7b9;
+  --primary-active-color: #2f9296;
+  --primary-hover-color: #dff5f2;
   --disabled-bg-color: #eee;
   --disabled-color: #aaa;
 }
@@ -39,9 +40,9 @@ a:hover {
 }
 
 body {
-  min-width: 320px;
   min-height: 100vh;
-  background-color: #5d6f6f;
+  height: fit-content;
+  background-color: #2f9296;
   font-size: 0.16rem;
 }
 
@@ -52,14 +53,5 @@ body {
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  /* 系统浅色模式 */
 }
