@@ -35,7 +35,12 @@ interface Game {
   url: string;
 }
 const gameList: Game[] = reactive([
-  { id: 1, name: '连连看', coverImg: '/img/link-game.jpg', url: '/link-game' },
+  {
+    id: 1,
+    name: '连连看',
+    coverImg: '/game-box/img/link-game.jpg',
+    url: '/link-game'
+  },
   { id: 2, name: '消消乐', coverImg: '', url: '' }
 ]);
 
