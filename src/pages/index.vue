@@ -26,6 +26,7 @@ import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 
 const router = useRouter();
+console.log(import.meta.env.VITE_BASE_URL);
 
 interface Game {
   id: number;

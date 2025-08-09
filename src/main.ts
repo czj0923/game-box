@@ -1,5 +1,6 @@
 import { createApp } from 'vue';
-import 'swiper/css';
+import 'swiper/swiper-bundle.css';
+//import 'swiper/swiper.css'
 import 'ant-design-vue/dist/reset.css';
 import './assets/style.css';
 import App from './App.vue';

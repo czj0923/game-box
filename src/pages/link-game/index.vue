@@ -568,7 +568,7 @@ watch(timeLeft, (newValue) => {
 
 <style scoped lang="scss">
 .game-container {
-  width: 800px;
+  width: 600px;
   margin: 0 auto;
   padding: 0.2rem;
   font-family: Arial, sans-serif;
@@ -619,7 +619,7 @@ watch(timeLeft, (newValue) => {
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  font-size: 0.4rem;
+  font-size: 0.3rem;
   transition: all 0.4s ease;
   line-height: 1;
   &:hover {

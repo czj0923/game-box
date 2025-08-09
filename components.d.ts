@@ -12,15 +12,13 @@ declare module 'vue' {
     AConfigProvider: typeof import('ant-design-vue/es')['ConfigProvider']
     AStyleProvider: typeof import('ant-design-vue/es')['StyleProvider']
     CButton: typeof import('./src/components/c-button.vue')['default']
+    CModal: typeof import('./src/components/c-modal.vue')['default']
     CTabs: typeof import('./src/components/c-tabs.vue')['default']
-    ExclamationCircleOutlined: typeof import('@ant-design/icons-vue')['ExclamationCircleOutlined']
     FullscreenExitOutlined: typeof import('@ant-design/icons-vue')['FullscreenExitOutlined']
     FullscreenOutlined: typeof import('@ant-design/icons-vue')['FullscreenOutlined']
-    QuestionCircleOutlined: typeof import('@ant-design/icons-vue')['QuestionCircleOutlined']
     RetweetOutlined: typeof import('@ant-design/icons-vue')['RetweetOutlined']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    SearchOutlined: typeof import('@ant-design/icons-vue')['SearchOutlined']
     UndoOutlined: typeof import('@ant-design/icons-vue')['UndoOutlined']
   }
 }
