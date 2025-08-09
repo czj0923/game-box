@@ -41,7 +41,7 @@ const gameList: Game[] = reactive([
 
 const goToGame = (url: string) => {
   if (!url) {
-    return message.error('暂未开发');
+    return message.error('暂未开发!');
   }
   router.push({
     path: url
