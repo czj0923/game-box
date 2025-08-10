@@ -1,13 +1,16 @@
 import { Howl } from 'howler';
+import eliminateUrl from '/sound/eliminate.mp3';
+import selectedUrl from '/sound/selected.mp3';
+import successUrl from '/sound/success.mp3';
 
 const eliminateSound = new Howl({
-  src: ['/sound/eliminate.mp3']
+  src: [eliminateUrl]
 });
 const selectedSound = new Howl({
-  src: ['/sound/selected.mp3']
+  src: [selectedUrl]
 });
 const successSound = new Howl({
-  src: ['/sound/success.mp3']
+  src: [successUrl]
 });
 
 function getSound(type: string) {
