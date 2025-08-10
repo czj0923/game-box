@@ -3,17 +3,19 @@ import { useMainStore } from './stores';
 const store = useMainStore();
 import { watch } from 'vue';
 import { px2remTransformer } from 'ant-design-vue';
-import { useWindowSize } from '@vueuse/core';
+import { useWindowSize, useColorMode } from '@vueuse/core';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 
 const { width } = useWindowSize();
 
+const mode = useColorMode({ modes: { cafe: 'cafe' } });
+mode.value = 'cafe';
 watch(
   width,
   (newV) => {
-    if (newV < 840) {
+    if (newV < store.screenWidth) {
       store.$patch((state) => {
-        state.ratio = newV / 840;
+        state.ratio = newV / store.screenWidth;
       });
     } else {
       store.$patch((state) => {

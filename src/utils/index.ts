@@ -1,6 +1,9 @@
 import { Modal } from 'ant-design-vue';
 import { createVNode } from 'vue';
 import { ExclamationCircleOutlined } from '@ant-design/icons-vue';
+import { useMediaQuery } from '@vueuse/core';
+import { useMainStore } from '@/stores/index.ts';
+const store = useMainStore();
 
 export interface Option {
   label: string;
@@ -8,7 +11,7 @@ export interface Option {
 }
 
 const isSmallScreen = () => {
-  return window.innerWidth < 840;
+  return store.ratio < 1;
 };
 
 function confirm(content: string = '是否重新开始游戏？') {
