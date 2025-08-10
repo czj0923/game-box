@@ -24,10 +24,9 @@ import { Swiper, SwiperSlide } from 'swiper/vue';
 import { reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
+import linkGameImg from '/img/link-game.jpg';
 
 const router = useRouter();
-console.log(import.meta.env.VITE_BASE_URL);
-
 interface Game {
   id: number;
   name: string;
@@ -38,7 +37,7 @@ const gameList: Game[] = reactive([
   {
     id: 1,
     name: '连连看',
-    coverImg: '/game-box/img/link-game.jpg',
+    coverImg: linkGameImg,
     url: '/link-game'
   },
   { id: 2, name: '消消乐', coverImg: '', url: '' }

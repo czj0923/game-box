@@ -27,8 +27,8 @@ export enum PropType {
 
 export const DIFFICULTY_CONFIGS = {
   easy: {
-    width: 2,
-    height: 2,
+    width: 6,
+    height: 6,
     timeLimit: 300, // 5分钟
     types: 6
   },

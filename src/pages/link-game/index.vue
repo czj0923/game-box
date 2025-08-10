@@ -164,18 +164,19 @@ import {
   checkGameComplete,
   findConnectionPath
 } from '@/utils/link-game';
-import { type Option } from '@/utils';
+import { type Option, confirm } from '@/utils';
 import {
   saveGameRecord,
   getGameRecords,
   formatTime,
   formatDate
 } from '@/utils/link-game/rank.ts';
-import { Modal, message } from 'ant-design-vue';
+import { message } from 'ant-design-vue';
 import { ExclamationCircleOutlined } from '@ant-design/icons-vue';
 import { useMainStore } from '@/stores';
 const store = useMainStore();
 import { useFullscreen } from '@vueuse/core';
+import { getSound } from '@/utils/link-game/sound.ts';
 
 // 状态管理
 const board = ref<number[][]>([]);
@@ -271,21 +272,6 @@ function getSegmentStyle(segment: { start: Point; end: Point }): CSSProperties {
   };
 }
 
-function confirm(content: string = '是否重新开始游戏？') {
-  return new Promise((resolve, reject) => {
-    Modal.confirm({
-      title: '确认提示',
-      icon: createVNode(ExclamationCircleOutlined),
-      content,
-      onOk() {
-        resolve(true);
-      },
-      onCancel() {
-        reject();
-      }
-    });
-  });
-}
 // 开始新游戏
 function startNewGame() {
   confirm()
@@ -329,6 +315,7 @@ function startGame() {
 function handleCellClick(x: number, y: number) {
   // 空格
   if (board.value[x][y] === 0) return;
+  getSound('selected').play();
 
   const currentPoint: Point = {
     x,
@@ -350,6 +337,7 @@ function handleCellClick(x: number, y: number) {
 
   // 判断可消除
   if (canConnect(selectedPoint.value, currentPoint, board.value)) {
+    getSound('eliminate').play();
     // 保存当前状态用于撤销
     saveGameState();
 
@@ -409,6 +397,7 @@ function checkGameState() {
   if (gameStatus.isComplete) {
     endGame(gameStatus.reason, true);
     if (gameStatus.isVictory) {
+      getSound('success').play();
       score.value += calculateTimeBonus(); // 给予额外的时间奖励
     }
   }
@@ -498,6 +487,7 @@ function changeDifficulty(diff: string) {
       })
       .catch(() => {});
   } else {
+    difficulty.value = diff;
     startGame();
   }
 }
@@ -521,34 +511,34 @@ function isHighlighted(x: number, y: number): boolean {
 }
 
 function getEmoji(value: number): string {
-  //const emojis = [
-  //  '🐶',
-  //  '🐱',
-  //  '🐭',
-  //  '🐹',
-  //  '🐰',
-  //  '🦊',
-  //  '🐻',
-  //  '🐼',
-  //  '🐨',
-  //  '🐯',
-  //  '🦁',
-  //  '🐮'
-  //];
   const emojis = [
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '10',
-    '11',
-    '12'
+    '🐶',
+    '🐱',
+    '🐭',
+    '🐹',
+    '🐰',
+    '🦊',
+    '🐻',
+    '🐼',
+    '🐨',
+    '🐯',
+    '🦁',
+    '🐮'
   ];
+  // const emojis = [
+  //   '1',
+  //   '2',
+  //   '3',
+  //   '4',
+  //   '5',
+  //   '6',
+  //   '7',
+  //   '8',
+  //   '9',
+  //   '10',
+  //   '11',
+  //   '12'
+  // ];
   return emojis[(value - 1) % emojis.length];
 }
 
@@ -596,6 +586,7 @@ watch(timeLeft, (newValue) => {
   display: flex;
   gap: 0.1rem;
 }
+
 .game-board {
   display: grid;
   gap: 0.04rem;
@@ -622,18 +613,22 @@ watch(timeLeft, (newValue) => {
   font-size: 0.3rem;
   transition: all 0.4s ease;
   line-height: 1;
+
   &:hover {
     background-color: var(--primary-hover-color);
   }
+
   &.empty {
     background-color: transparent;
     cursor: default;
   }
+
   &.selected {
     background-color: var(--primary-active-color);
     color: white;
     //transform: scale(0.95);
   }
+
   &.highlighted {
     animation: pulse 1s infinite;
   }
@@ -665,6 +660,7 @@ watch(timeLeft, (newValue) => {
   background-color: #f8f8f8;
   border-radius: 0.08rem;
   font-size: 0.16rem;
+
   h3 {
     margin: 0 0 15px 0;
     color: #000;
@@ -696,12 +692,14 @@ watch(timeLeft, (newValue) => {
   justify-content: center;
   align-items: center;
   font-size: 0.16rem;
+
   .modal-content {
     background-color: white;
     color: #000;
     padding: 0.3rem;
     border-radius: 0.08rem;
     text-align: center;
+
     h2 {
       color: #f00;
     }
@@ -725,12 +723,15 @@ watch(timeLeft, (newValue) => {
   0% {
     opacity: 0;
   }
+
   20% {
     opacity: 1;
   }
+
   80% {
     opacity: 1;
   }
+
   100% {
     opacity: 0;
   }
@@ -738,14 +739,16 @@ watch(timeLeft, (newValue) => {
 
 @media (max-width: 840px) {
   .game-container {
-    width: 100vw;
+    width: 100%;
     padding: 10px;
   }
 }
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.4s;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;

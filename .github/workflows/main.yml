@@ -4,14 +4,13 @@ name: 部署
 on:
   push:
     branches:
-      # 确保这是你正在使用的分支名称
       - master
 
 permissions:
   contents: write
 
 jobs:
-  deploy-gh-pages:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,8 +39,22 @@ jobs:
         run: |-
           pnpm run build
 
-      - name: 部署
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: upload artifact
+        uses: actions/upload-pages-artifact@v3
+        # 将./dist目录中生成的静态网站文件打包并上传。
+        # 这个产物（artifact）后续会被 `deploy` 作业使用。
         with:
-          branch: gh-pages
-          folder: ./dist
+          path: ./dist
+  # 部署工作
+  deploy:
+    environment: # 部署环境
+      name: github-pages # 部署到 GitHub Pages
+      url: ${{ steps.deployment.outputs.page_url }} # 部署后的 URL
+    needs: build # 指定 deploy 作业依赖于 build 作业。
+                # 也就是说，只有当 `build` 作业成功完成后，`deploy` 作业才会开始执行。
+    runs-on: ubuntu-latest # 运行环境
+    name: Deploy # 工作名称
+    steps: # 步骤
+      - name: Deploy to GitHub Pages # 部署到 GitHub Pages
+        id: deployment # 给这个步骤一个ID，名为 `deployment`，这样其他地方就可以引用它的输出。
+        uses: actions/deploy-pages@v4 # 使用的 action，它会获取由 `build` 作业上传的构建产物

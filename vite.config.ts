@@ -12,7 +12,7 @@ const DRIVE_LETTER_REGEX = /^[a-z]:/i;
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(process.cwd(), 'environment'), '');
   return {
-    base: '/game-box/',
+    base: env.VITE_BASE_URL,
     build: {
       rollupOptions: {
         output: {
