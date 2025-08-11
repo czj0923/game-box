@@ -3,13 +3,11 @@ import { useMainStore } from './stores';
 const store = useMainStore();
 import { watch } from 'vue';
 import { px2remTransformer } from 'ant-design-vue';
-import { useWindowSize, useColorMode } from '@vueuse/core';
+import { useWindowSize, useDark } from '@vueuse/core';
 import zhCN from 'ant-design-vue/es/locale/zh_CN';
 
 const { width } = useWindowSize();
 
-const mode = useColorMode({ modes: { cafe: 'cafe' } });
-mode.value = 'cafe';
 watch(
   width,
   (newV) => {

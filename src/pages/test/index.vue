@@ -1,7 +1,11 @@
 <template>
-  <div>{{ state }}</div>
+  <div>111</div>
+  <c-button @click="handleClick">change</c-button>
 </template>
 <script lang="ts" setup>
-import { useStorage } from '@vueuse/core';
-const state = useStorage('link_game_records', []);
+import { useDark, useSupported } from '@vueuse/core';
+import { computed, toValue, ref } from 'vue';
+
+const isDark = useDark();
+const handleClick = () => {};
 </script>
